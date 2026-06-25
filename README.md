@@ -1,4 +1,4 @@
-***** Backend **********
+##Backend 
 cd backend (go to the backend folder)
 python -m venv venv
 venv/Scripts/activate (Create a virtual enviornment)
