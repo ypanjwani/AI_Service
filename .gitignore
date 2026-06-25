@@ -1,0 +1,34 @@
+# ── Environment files — NEVER commit these ──────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python / Django ──────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+db.sqlite3
+*.log
+staticfiles/
+
+# ── Node / Vite ──────────────────────────────────────────────────────────
+node_modules/
+Frontend/dist/
+Frontend/.vite/
+
+# ── OS / Editor ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Claude Code project data ─────────────────────────────────────────────
+.claude/
+
+# ── Local scratch files ───────────────────────────────────────────────────
+*.txt
+*.png
+*.jpg
+prompt*

@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@keyframes growBar {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
