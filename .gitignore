@@ -32,3 +32,7 @@ Thumbs.db
 *.png
 *.jpg
 prompt*
+
+# Keep dependency files even though *.txt is ignored above
+!**/requirements.txt
+!requirements.txt
