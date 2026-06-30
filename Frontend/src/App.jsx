@@ -15,12 +15,14 @@ import LoginPage              from './pages/LoginPage'
 import ForgotPasswordPage     from './pages/ForgotPasswordPage'
 import ResetPasswordPage      from './pages/ResetPasswordPage'
 import ChatbotServicePage     from './pages/ChatbotServicePage'
-import AIWebsitesServicePage  from './pages/AIWebsitesServicePage'
-import ConsultingServicePage  from './pages/ConsultingServicePage'
-import AIAgentsServicePage    from './pages/AIAgentsServicePage'
-import MultilingualServicePage from './pages/MultilingualServicePage'
-import RAGSystemsServicePage  from './pages/RAGSystemsServicePage'
-import ContactPage            from './pages/ContactPage'
+import WhatsAppAIPage           from './pages/WhatsAppAIPage'
+import ConsultingServicePage   from './pages/ConsultingServicePage'
+import AIAgentsServicePage     from './pages/AIAgentsServicePage'
+import CustomerSupportServicePage from './pages/CustomerSupportServicePage'
+import RAGSystemsServicePage    from './pages/RAGSystemsServicePage'
+import AIWebsitesServicePage    from './pages/AIWebsitesServicePage'
+import MultilingualServicePage  from './pages/MultilingualServicePage'
+import ContactPage              from './pages/ContactPage'
 
 /* Redirects to /login if not authenticated.
    Passes the attempted path so LoginPage can redirect back after login. */
@@ -107,12 +109,14 @@ export default function App() {
               <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
               <Route path="/reset-password"   element={<ResetPasswordPage />} />
               <Route path="/service/chatbot"      element={<ChatbotServicePage />} />
-              <Route path="/service/ai-websites"  element={<AIWebsitesServicePage />} />
-              <Route path="/service/consulting"   element={<ConsultingServicePage />} />
-              <Route path="/service/ai-agents"    element={<AIAgentsServicePage />} />
-              <Route path="/service/multilingual" element={<MultilingualServicePage />} />
-              <Route path="/service/rag-systems"  element={<RAGSystemsServicePage />} />
-              <Route path="/contact"              element={<ContactPage />} />
+              <Route path="/service/whatsapp-ai"      element={<WhatsAppAIPage />} />
+              <Route path="/service/consulting"       element={<ConsultingServicePage />} />
+              <Route path="/service/ai-agents"        element={<AIAgentsServicePage />} />
+              <Route path="/service/customer-support" element={<CustomerSupportServicePage />} />
+              <Route path="/service/rag-systems"      element={<RAGSystemsServicePage />} />
+              <Route path="/service/ai-websites"      element={<AIWebsitesServicePage />} />
+              <Route path="/service/multilingual"     element={<MultilingualServicePage />} />
+              <Route path="/contact"                  element={<ContactPage />} />
             </Routes>
           </div>
         </AuthProvider>

@@ -1,4 +1,5 @@
 import re
+from datetime import date
 from rest_framework import serializers
 
 SEQ_PATTERNS = [
@@ -9,7 +10,7 @@ SEQ_PATTERNS = [
 
 def _validate_gmail(value: str) -> str:
     value = value.strip().lower()
-    if not value.endswith('@gmail.com') or len(value) <= 10:
+    if not value.endswith('@gmail.com'):
         raise serializers.ValidationError('Email must be a Gmail address (@gmail.com)')
     return value
 
@@ -24,12 +25,11 @@ class RegisterSerializer(serializers.Serializer):
     password / confirmPassword are write_only and never echoed back.
     """
 
-    name            = serializers.CharField(max_length=255)
+    name            = serializers.CharField(min_length=2, max_length=255)
     email           = serializers.EmailField()
     dob             = serializers.DateField()
     password        = serializers.CharField(min_length=8, max_length=128, write_only=True)
     confirmPassword = serializers.CharField(write_only=True)
-    phone           = serializers.CharField()
 
     def validate_name(self, value):
         return value.strip()
@@ -37,8 +37,19 @@ class RegisterSerializer(serializers.Serializer):
     def validate_email(self, value):
         return _validate_gmail(value)
 
+    def validate_dob(self, value):
+        today = date.today()
+        if value > today:
+            raise serializers.ValidationError('Date of birth cannot be in the future')
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        if age < 13:
+            raise serializers.ValidationError('You must be at least 13 years old to register')
+        return value
+
     def validate_password(self, value):
         errors = []
+        if re.search(r'\s', value):
+            errors.append('Must not contain spaces')
         if not re.search(r'[a-z]', value):
             errors.append('Must include a lowercase letter')
         if not re.search(r'[A-Z]', value):
@@ -53,12 +64,6 @@ class RegisterSerializer(serializers.Serializer):
             errors.append('Must not contain sequential numbers (e.g. 1234, 5678)')
         if errors:
             raise serializers.ValidationError(errors)
-        return value
-
-    def validate_phone(self, value):
-        value = re.sub(r'\D', '', value.strip())
-        if len(value) != 10:
-            raise serializers.ValidationError('Phone must be exactly 10 digits, no letters')
         return value
 
     def validate(self, data):
@@ -107,7 +112,7 @@ class ProfileUpdateSerializer(serializers.Serializer):
     phone = serializers.CharField()
 
     def validate_phone(self, value):
-        value = re.sub(r'\D', '', value.strip())
+        value = re.sub(r'[^0-9]', '', value.strip())
         if len(value) != 10:
             raise serializers.ValidationError('Phone must be exactly 10 digits, no letters')
         return value
@@ -116,14 +121,8 @@ class ProfileUpdateSerializer(serializers.Serializer):
 class VerifyRegisterSerializer(serializers.Serializer):
     token     = serializers.CharField(min_length=64, max_length=64)
     email_otp = serializers.CharField(min_length=6, max_length=6)
-    phone_otp = serializers.CharField(min_length=6, max_length=6)
 
     def validate_email_otp(self, value):
-        if not value.isdigit():
-            raise serializers.ValidationError('OTP must be 6 digits')
-        return value
-
-    def validate_phone_otp(self, value):
         if not value.isdigit():
             raise serializers.ValidationError('OTP must be 6 digits')
         return value
@@ -135,6 +134,7 @@ class VerifyRegisterSerializer(serializers.Serializer):
 
 def _validate_password_strength(value):
     errors = []
+    if re.search(r'\s', value):               errors.append('Must not contain spaces')
     if not re.search(r'[a-z]', value):        errors.append('Must include a lowercase letter')
     if not re.search(r'[A-Z]', value):        errors.append('Must include an uppercase letter')
     if not re.search(r'[0-9]', value):        errors.append('Must include a digit')
@@ -155,7 +155,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    token           = serializers.CharField()
+    token           = serializers.CharField(min_length=64, max_length=64)
     password        = serializers.CharField(min_length=8, max_length=128, write_only=True)
     confirmPassword = serializers.CharField(write_only=True)
 

@@ -1,150 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
-
-const VIDEO_ID    = 'MmgRnR0hGN8'
-const CLIP_START  = 6
-const CLIP_END    = 30
-
-function scrollToSection(selector) {
-  const el = document.querySelector(selector)
-  if (!el) return
-  if (window.__lenis) {
-    window.__lenis.scrollTo(el, { offset: -80 })
-  } else {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-}
+import { useNavigate } from 'react-router-dom'
 
 export default function HeroSection() {
-  const containerRef = useRef(null)
-  const [videoReady, setVideoReady] = useState(false)
-
-  useEffect(() => {
-    let player      = null
-    let loopTimer   = null
-    let unmounted   = false
-    let hasRevealed = false
-
-    function startLoop(p) {
-      p.seekTo(CLIP_START, true)
-      p.playVideo()
-      clearInterval(loopTimer)
-      loopTimer = setInterval(() => {
-        try {
-          if (p.getCurrentTime() >= CLIP_END) {
-            p.seekTo(CLIP_START, true)
-            p.playVideo()
-          }
-        } catch (_) {}
-      }, 500)
-    }
-
-    function createPlayer() {
-      if (unmounted || !containerRef.current) return
-      if (containerRef.current.tagName === 'IFRAME') return
-
-      player = new window.YT.Player(containerRef.current, {
-        videoId: VIDEO_ID,
-        width: '100%',
-        height: '100%',
-        playerVars: {
-          autoplay:        1,
-          mute:            1,
-          controls:        0,
-          showinfo:        0,
-          rel:             0,
-          modestbranding:  1,
-          iv_load_policy:  3,
-          disablekb:       1,
-          fs:              0,
-          playsinline:     1,
-          enablejsapi:     1,
-        },
-        events: {
-          onReady(e) {
-            if (unmounted) return
-            const iframe = e.target.getIframe()
-            iframe.style.pointerEvents = 'none'
-            iframe.style.border = 'none'
-            startLoop(e.target)
-          },
-          onStateChange(e) {
-            if (unmounted) return
-            const S = window.YT.PlayerState
-            if (e.data === S.PLAYING && !hasRevealed) {
-              hasRevealed = true
-              /* Small delay ensures YouTube's own play-button overlay
-                 has fully cleared before we reveal the iframe */
-              setTimeout(() => {
-                if (!unmounted) setVideoReady(true)
-              }, 300)
-            }
-            if (e.data === S.PAUSED || e.data === S.ENDED) {
-              setTimeout(() => {
-                try { e.target.playVideo() } catch (_) {}
-              }, 80)
-            }
-          },
-        },
-      })
-    }
-
-    if (window.YT?.Player) {
-      createPlayer()
-    } else {
-      const prev = window.onYouTubeIframeAPIReady
-      window.onYouTubeIframeAPIReady = function () {
-        prev?.()
-        createPlayer()
-      }
-      if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-        const s = document.createElement('script')
-        s.src = 'https://www.youtube.com/iframe_api'
-        document.head.appendChild(s)
-      }
-    }
-
-    return () => {
-      unmounted = true
-      clearInterval(loopTimer)
-      try { player?.destroy() } catch (_) {}
-    }
-  }, [])
+  const navigate = useNavigate()
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-950">
 
       {/* ── VIDEO BACKGROUND ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        <video
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover"
           style={{ width: 'max(100vw, 177.78vh)', height: 'max(100vh, 56.25vw)' }}
-        >
-          <div ref={containerRef} className="w-full h-full" />
-        </div>
+          src="/hero-bg.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        />
       </div>
-
-      {/*
-        ── COVER LAYER ──
-        Sits directly above the video iframe. Starts solid (slate-950) so the
-        YouTube player UI — the initial play button, thumbnail, buffering state —
-        is completely hidden. Fades to transparent only after the first PLAYING
-        event fires + 300ms, by which point YouTube's own overlay is gone.
-      */}
-      <div
-        className="absolute inset-0 pointer-events-none transition-opacity duration-[1000ms]"
-        style={{
-          backgroundColor: '#020617', // slate-950
-          opacity: videoReady ? 0 : 1,
-          zIndex: 1,
-        }}
-      />
 
       {/* ── OVERLAYS — text readability ── */}
 
       {/* 1. Flat dark base */}
       <div className="absolute inset-0 bg-black/70" style={{ zIndex: 2 }} />
 
-      {/* 2. Center-bright vignette */}
+      {/* 2. Centre-bright vignette */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -190,9 +71,8 @@ export default function HeroSection() {
         </p>
 
         <div className="mt-11 flex items-center justify-center gap-5">
-          <a
-            href="#contact"
-            onClick={e => { e.preventDefault(); scrollToSection('#contact') }}
+          <button
+            onClick={() => navigate('/contact')}
             className="inline-flex items-center gap-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[0.95rem] px-9 py-4 rounded-xl shadow-2xl shadow-blue-600/50 hover:shadow-blue-500/60 transition-all duration-200"
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -201,18 +81,24 @@ export default function HeroSection() {
               />
             </svg>
             Book a Free Call
-          </a>
+          </button>
 
-          <a
-            href="#services"
-            onClick={e => { e.preventDefault(); scrollToSection('#services') }}
+          <button
+            onClick={() => {
+              const el = document.getElementById('services')
+              if (el) {
+                window.__lenis
+                  ? window.__lenis.scrollTo(el, { offset: -80 })
+                  : el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            }}
             className="inline-flex items-center gap-2.5 border-2 border-white/40 text-white hover:bg-white/10 hover:border-white/60 backdrop-blur-sm font-bold text-[0.95rem] px-9 py-4 rounded-xl transition-all duration-200"
           >
             Our Services
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
-          </a>
+          </button>
         </div>
 
       </div>

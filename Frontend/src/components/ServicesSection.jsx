@@ -4,35 +4,32 @@
      into each service's imageUrl field.
 
    Suggested Pinterest searches:
-   0 → "AI website design"        services[0].imageUrl
-   1 → "chatbot interface UI"     services[1].imageUrl
-   2 → "business automation AI"   services[2].imageUrl
-   3 → "AI agent technology"      services[3].imageUrl
-   4 → "multilingual technology"  services[4].imageUrl
-   5 → "knowledge base AI"        services[5].imageUrl
+   0 → "WhatsApp business automation"  services[0].imageUrl
+   1 → "AI chatbot interface"          services[1].imageUrl
+   2 → "business automation AI"        services[2].imageUrl
+   3 → "AI agent technology"           services[3].imageUrl
+   4 → "AI customer support"           services[4].imageUrl
+   5 → "knowledge base AI"             services[5].imageUrl
 ───────────────────────────────────────────── */
 const services = [
   {
     number: '01',
-    title: 'AI Websites',
-    desc: 'Intelligent, conversion-optimised websites powered by AI that adapt to your users and automate content delivery.',
-    price: 'Starting at $1,499',
+    title: 'WhatsApp AI Automation',
+    desc: 'Turn WhatsApp into a 24/7 sales and operations engine — automated funnels, order management, lead qualification, and personalised broadcast campaigns.',
     imageUrl: '',
-    href: '/service/ai-websites',
+    href: '/service/whatsapp-ai',
   },
   {
     number: '02',
-    title: 'Chatbot Development',
-    desc: 'Smart conversational bots trained on your data to handle support, lead generation, and sales around the clock.',
-    price: 'Starting at ₹5,000',
+    title: 'Custom AI Chatbots',
+    desc: 'Domain-trained conversational AI built on your data — handling support, lead generation, and sales in multiple languages, around the clock.',
     imageUrl: '',
     href: '/service/chatbot',
   },
   {
     number: '03',
-    title: 'AI Consulting & Automation',
+    title: 'AI Strategy & Consulting',
     desc: 'Strategic AI roadmapping and workflow automation tailored to eliminate bottlenecks and boost operational efficiency.',
-    price: 'Starting at $999 / mo',
     imageUrl: '',
     href: '/service/consulting',
   },
@@ -40,23 +37,20 @@ const services = [
     number: '04',
     title: 'AI Agent Development',
     desc: 'Autonomous AI agents that execute complex multi-step tasks, make real-time decisions, and integrate with your stack.',
-    price: 'Starting at $3,499',
     imageUrl: '',
     href: '/service/ai-agents',
   },
   {
     number: '05',
-    title: 'Multilingual AI Solutions',
-    desc: 'AI systems that understand and respond in multiple languages, breaking barriers and expanding your global reach.',
-    price: 'Starting at $1,999',
+    title: 'AI Customer Support Systems',
+    desc: 'AI that resolves 60–80% of tickets automatically across chat, WhatsApp, and email — and routes the rest to your team with full context attached.',
     imageUrl: '',
-    href: '/service/multilingual',
+    href: '/service/customer-support',
   },
   {
     number: '06',
     title: 'Knowledge Base & RAG Systems',
     desc: 'Retrieval-Augmented Generation pipelines that give your AI instant, accurate access to your company knowledge.',
-    price: 'Starting at $2,999',
     imageUrl: '',
     href: '/service/rag-systems',
   },
@@ -190,11 +184,8 @@ export default function ServicesSection() {
                   {service.desc}
                 </p>
 
-                {/* Price + CTA */}
-                <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-blue-400 font-black text-[0.95rem]">
-                    {service.price}
-                  </span>
+                {/* CTA */}
+                <div className="mt-5 pt-4 border-t border-white/5 flex justify-end">
                   <span className="inline-flex items-center gap-1.5 text-[0.78rem] font-bold text-slate-500 group-hover:text-blue-400 transition-colors duration-200">
                     Learn more
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

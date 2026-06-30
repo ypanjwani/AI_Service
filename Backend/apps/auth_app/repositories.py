@@ -10,12 +10,18 @@ def find_user_by_email(email: str) -> Optional[User]:
     return User.objects.filter(email=email).first()
 
 
+def find_user_by_phone_hash(phone_hash: str) -> Optional[User]:
+    if not phone_hash:
+        return None
+    return User.objects.filter(phone_hash=phone_hash).first()
+
+
 def find_user_by_google_id(google_id: str) -> Optional[User]:
     return User.objects.filter(google_id=google_id).first()
 
 
-def create_user(*, name: str, email: str, dob, password_hash: str, phone: str) -> User:
-    user = User(name=name, email=email, dob=dob, password=password_hash, phone=phone)
+def create_user(*, name: str, email: str, dob, password_hash: str, phone: str, phone_hash: str = '') -> User:
+    user = User(name=name, email=email, dob=dob, password=password_hash, phone=phone, phone_hash=phone_hash)
     user.save()
     return user
 
@@ -33,18 +39,21 @@ def link_google_id(user: User, google_id: str) -> User:
 
 
 def update_user_phone(user: User, phone: str) -> User:
-    user.phone = phone
-    user.save(update_fields=['phone', 'updated_at'])
+    from .crypto import hash_phone
+    user.phone      = phone
+    user.phone_hash = hash_phone(phone) if phone else ''
+    user.save(update_fields=['phone', 'phone_hash', 'updated_at'])
     return user
 
 
 # ── OTP ───────────────────────────────────────────────────────
 
 def upsert_otp_verification(
-    *, token: str, email: str, phone: str,
-    email_otp_hash: str, phone_otp_hash: str,
+    *, token: str, email: str,
+    email_otp_hash: str,
     pending_name: str, pending_dob: str, pending_pw_hash: str,
     expires_at: datetime,
+    phone: str = '', phone_otp_hash: str = '',
 ) -> OTPVerification:
     OTPVerification.objects.filter(email=email).delete()
     return OTPVerification.objects.create(

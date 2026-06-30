@@ -79,10 +79,10 @@ class InitiateRegisterView(APIView):
             )
 
         try:
-            token, email_otp, phone_otp = initiate_registration(serializer.validated_data)
+            token, email_otp = initiate_registration(serializer.validated_data)
         except EmailAlreadyExistsError as exc:
             return Response(
-                {'status': 'error', 'message': str(exc)},
+                {'status': 'error', 'message': str(exc), 'field': 'email'},
                 status=status.HTTP_409_CONFLICT,
             )
         except OTPDeliveryError as exc:
@@ -93,7 +93,7 @@ class InitiateRegisterView(APIView):
 
         response_data = {'status': 'success', 'token': token}
         if settings.DEBUG:
-            response_data['_debug'] = {'email_otp': email_otp, 'phone_otp': phone_otp}
+            response_data['_debug'] = {'email_otp': email_otp}
 
         return Response(response_data, status=status.HTTP_200_OK)
 
@@ -124,7 +124,6 @@ class VerifyRegisterView(APIView):
             user, jwt_token = verify_registration_otp(
                 serializer.validated_data['token'],
                 serializer.validated_data['email_otp'],
-                serializer.validated_data['phone_otp'],
             )
         except (OTPInvalidError, OTPExpiredError, OTPMaxAttemptsError) as exc:
             return Response(
@@ -376,6 +375,31 @@ class PasswordResetConfirmView(APIView):
             {'status': 'success', 'message': 'Password updated successfully. You can now sign in.'},
             status=status.HTTP_200_OK,
         )
+
+
+# ══════════════════════════════════════════════════════════════
+#  POST /api/auth/refresh
+# ══════════════════════════════════════════════════════════════
+
+class RefreshView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = generate_jwt(request.user)
+        response = Response(
+            {'status': 'success', 'message': 'Token refreshed'},
+            status=status.HTTP_200_OK,
+        )
+        response.set_cookie(
+            key      = 'access_token',
+            value    = token,
+            httponly = True,
+            samesite = 'Lax',
+            secure   = not settings.DEBUG,
+            max_age  = settings.JWT_EXPIRY_SECONDS,
+            path     = '/',
+        )
+        return response
 
 
 # ══════════════════════════════════════════════════════════════

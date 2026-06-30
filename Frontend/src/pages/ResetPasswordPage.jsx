@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../utils/apiFetch'
 
 const API = import.meta.env.VITE_API_URL ?? ''
@@ -45,6 +45,7 @@ function EyeIcon({ visible }) {
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const token = searchParams.get('token') ?? ''
 
   const [password,    setPassword]    = useState('')
@@ -141,12 +142,12 @@ export default function ResetPasswordPage() {
             <p className="text-[0.85rem] text-slate-400 leading-relaxed mb-6">
               Your password has been changed successfully. You can now sign in with your new password.
             </p>
-            <a
-              href="/login"
-              className="inline-block w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-[0.9rem] py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-blue-600/30 text-center"
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black text-[0.9rem] py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-blue-600/30"
             >
               Sign In →
-            </a>
+            </button>
           </div>
 
         ) : (

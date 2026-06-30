@@ -4,13 +4,16 @@ from apps.auth_app.crypto import EncryptedPhoneField
 
 class ServiceInquiry(models.Model):
     SERVICE_CHOICES = [
-        ('chatbot',      'Chatbot Development'),
-        ('ai_website',   'AI Website'),
-        ('automation',   'AI Consulting & Automation'),
-        ('ai_agent',     'AI Agent Development'),
-        ('multilingual', 'Multilingual AI Solutions'),
-        ('rag',          'Knowledge Base & RAG Systems'),
-        ('other',        'Other'),
+        ('chatbot',          'Chatbot Development'),
+        ('ai_website',       'AI Website'),
+        ('automation',       'AI Consulting & Automation'),
+        ('ai_agent',         'AI Agent Development'),
+        ('multilingual',     'Multilingual AI Solutions'),
+        ('rag',              'Knowledge Base & RAG Systems'),
+        ('whatsapp',         'WhatsApp AI Automation'),
+        ('consulting',       'AI Strategy & Consulting'),
+        ('customer_support', 'AI Customer Support Systems'),
+        ('other',            'Other'),
     ]
 
     service    = models.CharField(max_length=50, choices=SERVICE_CHOICES, default='other')

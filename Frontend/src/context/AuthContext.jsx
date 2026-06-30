@@ -19,6 +19,27 @@ export function AuthProvider({ children }) {
       .finally(() => setChecking(false))
   }, [])
 
+  /* Proactively refresh the JWT every 30 min so the 4-hour cookie never expires mid-session */
+  useEffect(() => {
+    if (!user) return
+    const refresh = async () => {
+      try {
+        const res = await apiFetch(`${API}/api/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        })
+        if (!res.ok) setUser(null)
+      } catch {}
+    }
+    const id = setInterval(refresh, 30 * 60 * 1000)
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [user])
+
   /* Called by LoginPage after a successful login response */
   const login = useCallback((userData) => setUser(userData), [])
 

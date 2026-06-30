@@ -92,6 +92,7 @@ EMAIL_PORT         = 587
 EMAIL_USE_TLS      = True
 EMAIL_HOST_USER    = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD= os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_TIMEOUT      = 10   # seconds — prevents a hung SMTP server from stalling the request worker
 DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER', '')
 OWNER_EMAIL        = os.environ.get('OWNER_EMAIL', '')
 

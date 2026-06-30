@@ -17,6 +17,7 @@ const PW_RULES = [
   { label: 'At least one digit',           check: pw => /[0-9]/.test(pw) },
   { label: 'Special character (!@#…)',     check: pw => /[^a-zA-Z0-9]/.test(pw) },
   { label: 'No sequential digits (1234…)', check: pw => !SEQ.some(p => pw.includes(p)) },
+  { label: 'No spaces',                    check: pw => !/\s/.test(pw) },
 ]
 
 function getPasswordErrors(pw) {
@@ -60,7 +61,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState('form') // 'form' | 'otp' | 'success'
 
   const [form, setFormData] = useState({
-    name: '', email: '', dob: '', password: '', confirmPassword: '', phone: '',
+    name: '', email: '', dob: '', password: '', confirmPassword: '',
   })
   const [errors,  setErrors]  = useState({})
   const [showPw,  setShowPw]  = useState(false)
@@ -68,14 +69,10 @@ export default function RegisterPage() {
 
   /* OTP state */
   const [otpToken,      setOtpToken]      = useState('')
-  const [debugInfo,     setDebugInfo]     = useState(null)  // only set when DEBUG=True
+  const [debugInfo,     setDebugInfo]     = useState(null)
   const [emailOtpBoxes, setEmailOtpBoxes] = useState(Array(6).fill(''))
   const [emailOtpError, setEmailOtpError] = useState('')
   const emailOtpRefs = useRef([])
-
-  const [phoneOtpBoxes, setPhoneOtpBoxes] = useState(Array(6).fill(''))
-  const [phoneOtpError, setPhoneOtpError] = useState('')
-  const phoneOtpRefs = useRef([])
 
   /* API state */
   const [loading,  setLoading]  = useState(false)
@@ -90,13 +87,32 @@ export default function RegisterPage() {
   /* ── form validation ── */
   function validate() {
     const e = {}
-    if (!form.name.trim()) e.name = 'Full name is required'
+    if (!form.name.trim()) {
+      e.name = 'Full name is required'
+    } else if (form.name.trim().length < 2) {
+      e.name = 'Name must be at least 2 characters'
+    }
     if (!form.email) {
       e.email = 'Email is required'
-    } else if (!form.email.endsWith('@gmail.com') || form.email.length <= 10) {
+    } else if (!form.email.endsWith('@gmail.com')) {
       e.email = 'Email must end with @gmail.com'
     }
-    if (!form.dob) e.dob = 'Date of birth is required'
+    if (!form.dob) {
+      e.dob = 'Date of birth is required'
+    } else {
+      const [y, m, d] = form.dob.split('-').map(Number)
+      const dob   = new Date(y, m - 1, d)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (dob > today) {
+        e.dob = 'Date of birth cannot be in the future'
+      } else {
+        const age = today.getFullYear() - dob.getFullYear() -
+          ((today.getMonth() < dob.getMonth() ||
+            (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) ? 1 : 0)
+        if (age < 13) e.dob = 'You must be at least 13 years old to register'
+      }
+    }
     if (!form.password) {
       e.password = ['Password is required']
     } else {
@@ -108,17 +124,12 @@ export default function RegisterPage() {
     } else if (form.password !== form.confirmPassword) {
       e.confirmPassword = 'Passwords do not match'
     }
-    if (!form.phone) {
-      e.phone = 'Phone number is required'
-    } else if (!/^\d{10}$/.test(form.phone)) {
-      e.phone = 'Must be exactly 10 digits, no letters'
-    }
     return e
   }
 
-  /* ── Step 1: send OTPs ── */
+  /* ── Step 1: send OTP ── */
   async function callInitiate() {
-    const res = await apiFetch(`${API}/api/auth/register/initiate`, {
+    return apiFetch(`${API}/api/auth/register/initiate`, {
       method:      'POST',
       headers:     { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -128,10 +139,8 @@ export default function RegisterPage() {
         dob:             form.dob,
         password:        form.password,
         confirmPassword: form.confirmPassword,
-        phone:           form.phone,
       }),
     })
-    return res
   }
 
   async function handleSubmit(ev) {
@@ -151,13 +160,11 @@ export default function RegisterPage() {
         setDebugInfo(data._debug ?? null)
         setEmailOtpBoxes(Array(6).fill(''))
         setEmailOtpError('')
-        setPhoneOtpBoxes(Array(6).fill(''))
-        setPhoneOtpError('')
         setStep('otp')
         return
       }
 
-      if (res.status === 409) { setErrors({ email: data.message }); return }
+      if (res.status === 409) { setErrors({ [data.field || 'email']: data.message }); return }
       if (res.status === 422 && data.errors) {
         const fe = {}
         data.errors.forEach(e => { fe[e.field] = e.message })
@@ -172,7 +179,7 @@ export default function RegisterPage() {
     }
   }
 
-  /* ── Resend OTPs ── */
+  /* ── Resend OTP ── */
   async function issueOtp() {
     setLoading(true)
     setApiError('')
@@ -184,10 +191,8 @@ export default function RegisterPage() {
         setDebugInfo(data._debug ?? null)
         setEmailOtpBoxes(Array(6).fill(''))
         setEmailOtpError('')
-        setPhoneOtpBoxes(Array(6).fill(''))
-        setPhoneOtpError('')
       } else {
-        setApiError(data.message ?? 'Failed to resend codes.')
+        setApiError(data.message ?? 'Failed to resend code.')
       }
     } catch {
       setApiError('Network error.')
@@ -196,48 +201,33 @@ export default function RegisterPage() {
     }
   }
 
-  /* ── Generic OTP box handlers ── */
-  function makeOtpChange(boxes, setBoxes, refs, setErr) {
-    return (i, val) => {
-      if (!/^\d?$/.test(val)) return
-      const next = [...boxes]; next[i] = val; setBoxes(next); setErr('')
-      if (val && i < 5) setTimeout(() => refs.current[i + 1]?.focus(), 0)
-    }
+  /* ── OTP box handlers ── */
+  function onEmailChange(i, val) {
+    if (!/^\d?$/.test(val)) return
+    const next = [...emailOtpBoxes]; next[i] = val; setEmailOtpBoxes(next); setEmailOtpError('')
+    if (val && i < 5) setTimeout(() => emailOtpRefs.current[i + 1]?.focus(), 0)
   }
-  function makeOtpKey(boxes, refs) {
-    return (i, ev) => {
-      if (ev.key === 'Backspace' && !boxes[i] && i > 0) refs.current[i - 1]?.focus()
-      if (ev.key === 'ArrowLeft'  && i > 0) refs.current[i - 1]?.focus()
-      if (ev.key === 'ArrowRight' && i < 5) refs.current[i + 1]?.focus()
-    }
+  function onEmailKey(i, ev) {
+    if (ev.key === 'Backspace' && !emailOtpBoxes[i] && i > 0) emailOtpRefs.current[i - 1]?.focus()
+    if (ev.key === 'ArrowLeft'  && i > 0) emailOtpRefs.current[i - 1]?.focus()
+    if (ev.key === 'ArrowRight' && i < 5) emailOtpRefs.current[i + 1]?.focus()
   }
-  function makeOtpPaste(setBoxes, refs) {
-    return (ev) => {
-      const paste = ev.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
-      if (!paste) return
-      ev.preventDefault()
-      const next = Array(6).fill('')
-      paste.split('').forEach((c, i) => { next[i] = c })
-      setBoxes(next)
-      refs.current[Math.min(paste.length, 5)]?.focus()
-    }
+  function onEmailPaste(ev) {
+    const paste = ev.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!paste) return
+    ev.preventDefault()
+    const next = Array(6).fill('')
+    paste.split('').forEach((c, i) => { next[i] = c })
+    setEmailOtpBoxes(next)
+    emailOtpRefs.current[Math.min(paste.length, 5)]?.focus()
   }
 
-  const onEmailChange = makeOtpChange(emailOtpBoxes, setEmailOtpBoxes, emailOtpRefs, setEmailOtpError)
-  const onEmailKey    = makeOtpKey(emailOtpBoxes, emailOtpRefs)
-  const onEmailPaste  = makeOtpPaste(setEmailOtpBoxes, emailOtpRefs)
-
-  const onPhoneChange = makeOtpChange(phoneOtpBoxes, setPhoneOtpBoxes, phoneOtpRefs, setPhoneOtpError)
-  const onPhoneKey    = makeOtpKey(phoneOtpBoxes, phoneOtpRefs)
-  const onPhonePaste  = makeOtpPaste(setPhoneOtpBoxes, phoneOtpRefs)
-
-  /* ── Step 2: verify OTPs → create account ── */
+  /* ── Step 2: verify OTP → create account ── */
   async function handleVerify(ev) {
     ev.preventDefault()
     setLoading(true)
     setApiError('')
     setEmailOtpError('')
-    setPhoneOtpError('')
 
     try {
       const res = await apiFetch(`${API}/api/auth/register/verify`, {
@@ -247,7 +237,6 @@ export default function RegisterPage() {
         body: JSON.stringify({
           token:     otpToken,
           email_otp: emailOtpBoxes.join(''),
-          phone_otp: phoneOtpBoxes.join(''),
         }),
       })
       const data = await res.json()
@@ -255,13 +244,10 @@ export default function RegisterPage() {
       if (res.status === 201) { login(data.data); setStep('success'); return }
 
       if (res.status === 422 && data.errors) {
-        // OTPMismatchError → plain dict {email_otp, phone_otp}
-        // serializer failure → array [{field, message}]
         const errs = Array.isArray(data.errors)
           ? Object.fromEntries(data.errors.map(e => [e.field, e.message]))
           : data.errors
         if (errs.email_otp) setEmailOtpError(errs.email_otp)
-        if (errs.phone_otp) setPhoneOtpError(errs.phone_otp)
         if (data.remaining) setApiError(`${data.remaining} attempt(s) remaining before lockout`)
         return
       }
@@ -392,26 +378,15 @@ export default function RegisterPage() {
                   {errors.email && <p className="mt-1 text-[0.73rem] text-red-400">{errors.email}</p>}
                 </div>
 
-                {/* DOB + Phone */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[0.73rem] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Date of Birth <span className="text-red-400">*</span>
-                    </label>
-                    <input type="date" value={form.dob} max={new Date().toISOString().split('T')[0]}
-                      onChange={e => setField('dob', e.target.value)}
-                      className={`${baseInput} ${errors.dob ? errCls : okCls}`} style={{ colorScheme: 'dark' }} />
-                    {errors.dob && <p className="mt-1 text-[0.73rem] text-red-400">{errors.dob}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-[0.73rem] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Phone Number <span className="text-red-400">*</span>
-                    </label>
-                    <input type="tel" placeholder="10 digits" value={form.phone}
-                      onChange={e => setField('phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      className={`${baseInput} ${errors.phone ? errCls : okCls}`} />
-                    {errors.phone && <p className="mt-1 text-[0.73rem] text-red-400">{errors.phone}</p>}
-                  </div>
+                {/* Date of Birth */}
+                <div>
+                  <label className="block text-[0.73rem] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Date of Birth <span className="text-red-400">*</span>
+                  </label>
+                  <input type="date" value={form.dob} max={new Date().toISOString().split('T')[0]}
+                    onChange={e => setField('dob', e.target.value)}
+                    className={`${baseInput} ${errors.dob ? errCls : okCls}`} style={{ colorScheme: 'dark' }} />
+                  {errors.dob && <p className="mt-1 text-[0.73rem] text-red-400">{errors.dob}</p>}
                 </div>
 
                 {/* Password */}
@@ -510,21 +485,20 @@ export default function RegisterPage() {
                       d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                 </div>
-                <h1 className="text-[1.6rem] font-black text-white mb-2">Verify Your Identity</h1>
+                <h1 className="text-[1.6rem] font-black text-white mb-2">Check Your Email</h1>
                 <p className="text-[0.875rem] text-slate-400">
-                  We sent 6-digit codes to your email and phone number.
+                  We sent a 6-digit verification code to{' '}
+                  <span className="text-white font-semibold">{form.email}</span>
                 </p>
               </div>
 
-              {/* Dev debug panel — only visible when backend DEBUG=True */}
+              {/* Dev debug panel */}
               {debugInfo && (
                 <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-4 mb-7">
                   <p className="text-[0.7rem] font-black text-amber-400 uppercase tracking-widest mb-2">Development Mode</p>
                   <p className="text-[0.7rem] text-amber-500/70 mb-0.5">Email OTP</p>
                   <p className="text-[0.9rem] text-amber-200 font-black tracking-[0.22em]">{debugInfo.email_otp}</p>
-                  <p className="text-[0.7rem] text-amber-500/70 mt-3 mb-0.5">Phone OTP</p>
-                  <p className="text-[0.9rem] text-amber-200 font-black tracking-[0.22em]">{debugInfo.phone_otp}</p>
-                  <p className="text-[0.7rem] text-amber-500/70 mt-2">In production these codes are sent to your email and phone.</p>
+                  <p className="text-[0.7rem] text-amber-500/70 mt-2">In production this code is sent to your email.</p>
                 </div>
               )}
 
@@ -538,7 +512,7 @@ export default function RegisterPage() {
                         d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     <p className="text-[0.8rem] text-slate-400">
-                      Email code sent to <span className="text-white font-semibold">{form.email}</span>
+                      Code sent to <span className="text-white font-semibold">{form.email}</span>
                     </p>
                   </div>
                   <div className="flex gap-3 justify-center">
@@ -556,32 +530,6 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                {/* ── Phone OTP ── */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    <p className="text-[0.8rem] text-slate-400">
-                      SMS code sent to <span className="text-white font-semibold">{form.phone}</span>
-                    </p>
-                  </div>
-                  <div className="flex gap-3 justify-center">
-                    {phoneOtpBoxes.map((box, i) => (
-                      <input key={i} ref={el => { phoneOtpRefs.current[i] = el }}
-                        type="text" inputMode="numeric" maxLength={1} value={box}
-                        onChange={e => onPhoneChange(i, e.target.value)}
-                        onKeyDown={e => onPhoneKey(i, e)}
-                        onPaste={i === 0 ? onPhonePaste : undefined}
-                        className={otpBoxCls(!!phoneOtpError)} />
-                    ))}
-                  </div>
-                  {phoneOtpError && (
-                    <p className="text-center text-[0.78rem] text-red-400 mt-2">{phoneOtpError}</p>
-                  )}
-                </div>
-
                 {apiError && (
                   <div className="bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3 text-center">
                     <p className="text-[0.78rem] text-red-400">{apiError}</p>
@@ -589,14 +537,14 @@ export default function RegisterPage() {
                 )}
 
                 <button type="submit"
-                  disabled={emailOtpBoxes.join('').length < 6 || phoneOtpBoxes.join('').length < 6 || loading}
+                  disabled={emailOtpBoxes.join('').length < 6 || loading}
                   className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-[0.95rem] py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
                   {loading ? (<><Spinner /> Verifying…</>) : 'Verify & Create Account'}
                 </button>
               </form>
 
               <p className="text-center text-[0.8rem] text-slate-500 mt-5">
-                Did not receive the codes?{' '}
+                Did not receive the code?{' '}
                 <button type="button" onClick={issueOtp} disabled={loading}
                   className="text-blue-400 hover:text-blue-300 font-semibold transition-colors disabled:opacity-40">
                   Resend

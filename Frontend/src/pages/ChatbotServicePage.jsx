@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../utils/apiFetch'
 
@@ -102,11 +102,15 @@ export default function ChatbotServicePage() {
   const [message,   setMessage]   = useState('')
   const [date,      setDate]      = useState('')
   const [time,      setTime]      = useState('')
-  const [phone,     setPhone]     = useState('')
+  const [phone,     setPhone]     = useState(user?.phone || '')
   const [errors,    setErrors]    = useState({})
   const [loading,   setLoading]   = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [apiError,  setApiError]  = useState('')
+
+  /* Pre-fill the phone field once the account's saved number is available.
+     Keyed on user.phone so a per-booking edit is never clobbered. */
+  useEffect(() => { setPhone(user?.phone || '') }, [user?.phone])
 
   async function handleConfirm(ev) {
     ev.preventDefault()
@@ -114,19 +118,19 @@ export default function ChatbotServicePage() {
     if (!message.trim() || message.trim().length < 10) e.message = 'Please tell us what you want to discuss'
     if (!date)  e.date = 'Please pick a preferred date'
     if (!time)  e.time = 'Please pick a preferred time'
-    if (!user.phone) {
-      if (!phone.trim()) e.phone = 'Phone number is required'
-      else if (!/^\d{10}$/.test(phone.replace(/\D/g, ''))) e.phone = 'Must be exactly 10 digits'
-    }
+    if (!phone.trim()) e.phone = 'Phone number is required'
+    else if (!/^\d{10}$/.test(phone.replace(/\D/g, ''))) e.phone = 'Must be exactly 10 digits'
     if (Object.keys(e).length) { setErrors(e); return }
 
     setLoading(true)
     setApiError('')
 
-    const resolvedPhone = user.phone || phone.replace(/\D/g, '')
+    const resolvedPhone = phone.replace(/\D/g, '')
 
     try {
-      if (!user.phone && phone) {
+      // First-time capture only: save to the account when it had no number.
+      // An edit to an already-saved number stays local to this booking.
+      if (!user.phone && resolvedPhone) {
         const saved = await savePhone(resolvedPhone)
         if (saved?.data) updateUser(saved.data)
       }
@@ -174,15 +178,16 @@ export default function ChatbotServicePage() {
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-32 pb-28">
 
         {/* Breadcrumb */}
-        <a
-          href="/#services"
+        <Link
+          to="/"
+          state={{ scrollTo: 'services' }}
           className="inline-flex items-center gap-2 text-[0.8rem] font-semibold text-slate-500 hover:text-blue-400 transition-colors duration-200 mb-12"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
           Back to Services
-        </a>
+        </Link>
 
         {/* ── Two-column grid ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 xl:gap-16 items-start">
@@ -195,7 +200,7 @@ export default function ChatbotServicePage() {
               <span className="inline-flex items-center gap-2 mb-5">
                 <span className="h-px w-6 bg-blue-500" />
                 <span className="text-[0.7rem] font-black text-blue-400 uppercase tracking-[0.22em]">
-                  Chatbot Development
+                  Custom AI Chatbots
                 </span>
               </span>
 
@@ -297,21 +302,6 @@ export default function ChatbotServicePage() {
               {/* Purchase card */}
               <div className="bg-slate-900 border border-white/8 rounded-3xl overflow-hidden shadow-2xl shadow-black/40">
 
-                {/* Price */}
-                <div className="bg-gradient-to-br from-blue-950/70 to-slate-900 px-7 py-7 border-b border-white/8">
-                  <p className="text-[0.68rem] font-black text-blue-400/80 uppercase tracking-widest mb-2">
-                    Starting at
-                  </p>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-[3.2rem] font-black text-white leading-none">₹5,000</span>
-                    <span className="text-slate-400 text-sm">one-time</span>
-                  </div>
-                  <p className="text-[0.75rem] text-slate-500 leading-relaxed">
-                    Final price is confirmed after the free scoping call based on domain depth,
-                    number of languages, and integration scope.
-                  </p>
-                </div>
-
                 {/* Included */}
                 <div className="px-7 py-6 border-b border-white/8">
                   <p className="text-[0.68rem] font-black text-slate-500 uppercase tracking-widest mb-4">
@@ -393,22 +383,21 @@ export default function ChatbotServicePage() {
                         </span>
                       </div>
 
-                      {/* Phone — only shown for Google users who skipped it */}
-                      {!user.phone && (
-                        <div>
-                          <label className="block text-[0.72rem] font-black text-slate-400 uppercase tracking-wider mb-1.5">
-                            Phone Number *
-                          </label>
-                          <input
-                            type="tel"
-                            placeholder="10-digit mobile number"
-                            value={phone}
-                            onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setErrors(p => ({ ...p, phone: undefined })) }}
-                            className={`${baseInput} ${errors.phone ? errCls : okCls}`}
-                          />
-                          {errors.phone && <p className="mt-1 text-[0.72rem] text-red-400">{errors.phone}</p>}
-                        </div>
-                      )}
+                      {/* Phone — always shown, pre-filled from the account so the
+                          client can see (and override) the number we'll call. */}
+                      <div>
+                        <label className="block text-[0.72rem] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                          Phone Number *
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder="10-digit mobile number"
+                          value={phone}
+                          onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setErrors(p => ({ ...p, phone: undefined })) }}
+                          className={`${baseInput} ${errors.phone ? errCls : okCls}`}
+                        />
+                        {errors.phone && <p className="mt-1 text-[0.72rem] text-red-400">{errors.phone}</p>}
+                      </div>
 
                       {/* What to discuss */}
                       <div>

@@ -7,9 +7,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <style>
+      /* Chatbot widget full-height override */
+      iframe[src*="localhost:5174"] {
+        height: calc(100dvh - 80px) !important;
+        max-height: calc(100dvh - 80px) !important;
+        min-height: 0 !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- <script src="http://localhost:5174/widget.js" data-url="http://localhost:5174"></script> -->
   </body>
 </html>

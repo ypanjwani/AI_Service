@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../utils/apiFetch'
 
@@ -93,6 +93,8 @@ export default function MultilingualServicePage() {
   const [phone,     setPhone]     = useState('')
   const [errors,    setErrors]    = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [loading,   setLoading]   = useState(false)
+  const [apiError,  setApiError]  = useState('')
 
   async function handleConfirm(ev) {
     ev.preventDefault()
@@ -106,19 +108,42 @@ export default function MultilingualServicePage() {
     }
     if (Object.keys(e).length) { setErrors(e); return }
 
-    if (!user.phone && phone) {
-      try {
-        const res = await apiFetch(`${API}/api/auth/profile`, {
+    setLoading(true)
+    setApiError('')
+
+    const resolvedPhone = user.phone || phone.replace(/\D/g, '')
+
+    try {
+      if (!user.phone && phone) {
+        const saved = await apiFetch(`${API}/api/auth/profile`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ phone: phone.replace(/\D/g, '') }),
         })
-        if (res.ok) { const d = await res.json(); if (d?.data) updateUser(d.data) }
-      } catch {}
-    }
+        if (saved.ok) { const d = await saved.json(); if (d?.data) updateUser(d.data) }
+      }
 
-    setSubmitted(true)
+      const res = await apiFetch(`${API}/api/services/inquiry`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          service: 'multilingual',
+          name:    user.name,
+          email:   user.email,
+          phone:   resolvedPhone,
+          message: `[Preferred date & time: ${date} at ${time}]\n\n${message.trim()}`,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) { setSubmitted(true); return }
+      setApiError(data.message ?? 'Something went wrong. Please try again.')
+    } catch {
+      setApiError('Network error — is the backend running?')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -139,15 +164,16 @@ export default function MultilingualServicePage() {
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 pt-32 pb-28">
 
-        <a
-          href="/#services"
+        <Link
+          to="/"
+          state={{ scrollTo: 'services' }}
           className="inline-flex items-center gap-2 text-[0.8rem] font-semibold text-slate-500 hover:text-rose-400 transition-colors duration-200 mb-12"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
           </svg>
           Back to Services
-        </a>
+        </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 xl:gap-16 items-start">
 
@@ -255,20 +281,6 @@ export default function MultilingualServicePage() {
             <div className="sticky top-28 space-y-4">
 
               <div className="bg-slate-900 border border-white/8 rounded-3xl overflow-hidden shadow-2xl shadow-black/40">
-
-                <div className="bg-gradient-to-br from-rose-950/50 to-slate-900 px-7 py-7 border-b border-white/8">
-                  <p className="text-[0.68rem] font-black text-rose-400/80 uppercase tracking-widest mb-2">
-                    Starting at
-                  </p>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-[3.2rem] font-black text-white leading-none">$1,999</span>
-                    <span className="text-slate-400 text-sm">one-time</span>
-                  </div>
-                  <p className="text-[0.75rem] text-slate-500 leading-relaxed">
-                    Final price confirmed after the scoping call based on language count,
-                    integration platform, and custom dialect requirements.
-                  </p>
-                </div>
 
                 <div className="px-7 py-6 border-b border-white/8">
                   <p className="text-[0.68rem] font-black text-slate-500 uppercase tracking-widest mb-4">
@@ -411,11 +423,26 @@ export default function MultilingualServicePage() {
                         </div>
                       </div>
 
+                      {apiError && (
+                        <div className="bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3">
+                          <p className="text-[0.75rem] text-red-400">{apiError}</p>
+                        </div>
+                      )}
+
                       <button
                         type="submit"
-                        className="w-full bg-rose-600 hover:bg-rose-500 text-white font-black text-[0.9rem] py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-rose-600/30 hover:shadow-rose-500/40"
+                        disabled={loading}
+                        className="w-full bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-[0.9rem] py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-rose-600/30 hover:shadow-rose-500/40 flex items-center justify-center gap-2"
                       >
-                        Confirm Booking →
+                        {loading ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Confirming…
+                          </>
+                        ) : 'Confirm Booking →'}
                       </button>
 
                       <p className="text-center text-[0.7rem] text-slate-600">

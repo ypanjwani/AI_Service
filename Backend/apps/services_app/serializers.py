@@ -1,7 +1,7 @@
 import re
 from rest_framework import serializers
 
-VALID_SERVICES = {'chatbot', 'ai_website', 'automation', 'ai_agent', 'multilingual', 'rag', 'other'}
+VALID_SERVICES = {'chatbot', 'ai_website', 'automation', 'ai_agent', 'multilingual', 'rag', 'whatsapp', 'consulting', 'customer_support', 'other'}
 
 
 class InquirySerializer(serializers.Serializer):
@@ -28,7 +28,7 @@ class InquirySerializer(serializers.Serializer):
     def validate_phone(self, value):
         if not value:
             return ''
-        cleaned = re.sub(r'\D', '', value.strip())
+        cleaned = re.sub(r'[^0-9]', '', value.strip())
         if cleaned and len(cleaned) != 10:
             raise serializers.ValidationError('Phone must be exactly 10 digits')
         return cleaned

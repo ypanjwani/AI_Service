@@ -12,8 +12,10 @@ import requests as http_requests
 
 logger = logging.getLogger(__name__)
 
+from .crypto import hash_phone
 from .repositories import (
-    find_user_by_email, find_user_by_google_id, create_user, create_google_user, link_google_id,
+    find_user_by_email, find_user_by_phone_hash, find_user_by_google_id,
+    create_user, create_google_user, link_google_id,
     upsert_otp_verification, find_otp_by_token, lock_otp_by_token,
     increment_otp_attempts, atomic_increment_otp_attempts, delete_otp,
     upsert_reset_token, find_reset_token, delete_reset_token, update_user_password,
@@ -24,6 +26,10 @@ from .repositories import (
 # ── Custom exceptions ─────────────────────────────────────────────────
 
 class EmailAlreadyExistsError(Exception):
+    pass
+
+
+class PhoneAlreadyExistsError(Exception):
     pass
 
 
@@ -148,8 +154,8 @@ def _send_sms_otp(phone: str, otp: str) -> None:
 
 def initiate_registration(validated_data: dict):
     """
-    Validate → check duplicate email → hash password → send email + SMS OTPs → persist pending.
-    Returns (token, email_otp, phone_otp) — OTPs only exposed to view for the debug panel.
+    Validate → check duplicate email → hash password → send email OTP → persist pending.
+    Returns (token, email_otp) — OTP only exposed to view for the debug panel.
     """
     email = validated_data['email']
     if find_user_by_email(email):
@@ -161,16 +167,13 @@ def initiate_registration(validated_data: dict):
     ).decode('utf-8')
 
     email_otp  = _generate_otp()
-    phone_otp  = _generate_otp()
     token      = secrets.token_hex(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
 
     record = upsert_otp_verification(
         token=token,
         email=email,
-        phone=validated_data['phone'],
         email_otp_hash=_hash_otp(email_otp),
-        phone_otp_hash=_hash_otp(phone_otp),
         pending_name=validated_data['name'],
         pending_dob=str(validated_data['dob']),
         pending_pw_hash=password_hash,
@@ -183,22 +186,16 @@ def initiate_registration(validated_data: dict):
         delete_otp(record)
         raise
 
-    try:
-        _send_sms_otp(validated_data['phone'], phone_otp)
-    except OTPDeliveryError:
-        delete_otp(record)
-        raise
-
-    return token, email_otp, phone_otp
+    return token, email_otp
 
 
-def verify_registration_otp(token: str, email_otp: str, phone_otp: str):
+def verify_registration_otp(token: str, email_otp: str):
     """
-    Verify email + phone OTPs → create the user → return (user, jwt_token).
+    Verify email OTP → create the user → return (user, jwt_token).
     Raises specific exceptions on any failure.
 
     Split into two phases to avoid a TOCTOU race:
-    - Phase 1: slow bcrypt checks outside any lock (no DB writes).
+    - Phase 1: slow bcrypt check outside any lock (no DB writes).
     - Phase 2: re-fetch with SELECT FOR UPDATE inside a transaction so only
       one concurrent request can reach create_user for this token.
     """
@@ -216,12 +213,10 @@ def verify_registration_otp(token: str, email_otp: str, phone_otp: str):
         delete_otp(record)
         raise OTPMaxAttemptsError('Too many incorrect attempts. Please register again.')
 
-    # Bcrypt checks outside the lock (slow — run here to avoid holding the lock)
+    # Bcrypt check outside the lock (slow — run here to avoid holding the lock)
     phase1_errors = {}
     if not _verify_otp_hash(email_otp, record.email_otp_hash):
         phase1_errors['email_otp'] = 'Incorrect code'
-    if not _verify_otp_hash(phone_otp, record.phone_otp_hash):
-        phase1_errors['phone_otp'] = 'Incorrect code'
 
     # ── Phase 2: all DB writes under a row lock ───────────────────────
     try:
@@ -230,13 +225,10 @@ def verify_registration_otp(token: str, email_otp: str, phone_otp: str):
             if not locked:
                 raise OTPInvalidError('Session expired or invalid. Please register again.')
 
-            # Re-verify hashes against the locked row (defense-in-depth: catches
-            # any edge case where the row was swapped between phases)
+            # Re-verify hash against the locked row (defense-in-depth)
             phase2_errors = {}
             if not _verify_otp_hash(email_otp, locked.email_otp_hash):
                 phase2_errors['email_otp'] = 'Incorrect code'
-            if not _verify_otp_hash(phone_otp, locked.phone_otp_hash):
-                phase2_errors['phone_otp'] = 'Incorrect code'
 
             field_errors = phase1_errors or phase2_errors
             if field_errors:
@@ -254,7 +246,8 @@ def verify_registration_otp(token: str, email_otp: str, phone_otp: str):
                 email=locked.email,
                 dob=date.fromisoformat(locked.pending_dob),
                 password_hash=locked.pending_pw_hash,
-                phone=locked.phone,
+                phone='',
+                phone_hash='',
             )
             delete_otp(locked)
     except IntegrityError:

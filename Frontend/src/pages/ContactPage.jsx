@@ -5,11 +5,11 @@ import { apiFetch } from '../utils/apiFetch'
 const API = import.meta.env.VITE_API_URL ?? ''
 
 const SERVICE_OPTIONS = [
-  { label: 'AI Websites',                    value: 'ai_website' },
-  { label: 'Chatbot Development',            value: 'chatbot' },
-  { label: 'AI Consulting & Automation',     value: 'automation' },
+  { label: 'WhatsApp AI Automation',         value: 'whatsapp' },
+  { label: 'Custom AI Chatbots',             value: 'chatbot' },
+  { label: 'AI Strategy & Consulting',       value: 'consulting' },
   { label: 'AI Agent Development',           value: 'ai_agent' },
-  { label: 'Multilingual AI Solutions',      value: 'multilingual' },
+  { label: 'AI Customer Support Systems',    value: 'customer_support' },
   { label: 'Knowledge Base & RAG Systems',   value: 'rag' },
   { label: 'Not sure yet — I need guidance', value: 'other' },
 ]

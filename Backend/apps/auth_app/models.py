@@ -11,6 +11,7 @@ class User(models.Model):
     dob        = models.DateField(null=True, blank=True)
     password   = models.CharField(max_length=255, blank=True, default='')  # empty for OAuth users
     phone      = EncryptedPhoneField(max_length=255, blank=True, default='')
+    phone_hash = models.CharField(max_length=64, blank=True, default='', db_index=True)
     google_id          = models.CharField(max_length=255, null=True, blank=True, unique=True)
     tokens_valid_after = models.DateTimeField(null=True, blank=True, default=None)
     created_at         = models.DateTimeField(auto_now_add=True)
@@ -27,9 +28,9 @@ class OTPVerification(models.Model):
     """Stores pending registration data + hashed OTPs until both are verified."""
     token           = models.CharField(max_length=64, unique=True, db_index=True)
     email           = models.CharField(max_length=255, db_index=True)
-    phone           = EncryptedPhoneField(max_length=255)
+    phone           = EncryptedPhoneField(max_length=255, blank=True, default='')
     email_otp_hash  = models.CharField(max_length=255)
-    phone_otp_hash  = models.CharField(max_length=255)
+    phone_otp_hash  = models.CharField(max_length=255, blank=True, default='')
     pending_name    = models.CharField(max_length=255)
     pending_dob     = models.CharField(max_length=20)   # ISO date string e.g. "2000-01-15"
     pending_pw_hash = models.CharField(max_length=255)

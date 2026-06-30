@@ -1,3 +1,5 @@
+import hmac as _hmac
+import hashlib
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.db import models
@@ -21,6 +23,16 @@ def decrypt_phone(value: str) -> str:
         return _cipher().decrypt(value.encode()).decode()
     except (InvalidToken, Exception):
         return value  # plaintext fallback during data migration of old records
+
+
+def hash_phone(value: str) -> str:
+    """HMAC-SHA256 of the plaintext phone for deterministic uniqueness checks."""
+    if not value:
+        return ''
+    key = settings.PHONE_ENCRYPTION_KEY
+    if isinstance(key, str):
+        key = key.encode()
+    return _hmac.new(key, value.encode(), hashlib.sha256).hexdigest()
 
 
 class EncryptedPhoneField(models.CharField):

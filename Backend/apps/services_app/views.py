@@ -44,12 +44,16 @@ class InquiryView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        inquiry = submit_inquiry(serializer.validated_data)
+        inquiry, owner_notified = submit_inquiry(serializer.validated_data)
+        # The lead is always persisted, so the client still gets a 201 (re-submitting
+        # would only create duplicates). When the owner email could not be delivered the
+        # failure is logged at ERROR with the full lead; `owner_notified` surfaces it here too.
         return Response(
             {
-                'status':  'success',
-                'message': "Thank you! We'll get back to you within 24 hours.",
-                'data':    InquiryResponseSerializer(inquiry).data,
+                'status':         'success',
+                'message':        "Thank you! We'll get back to you within 24 hours.",
+                'owner_notified': owner_notified,
+                'data':           InquiryResponseSerializer(inquiry).data,
             },
             status=status.HTTP_201_CREATED,
         )
